@@ -10,10 +10,10 @@ export function SupabaseAuthSection() {
 
   useEffect(() => {
     backend.auth.getUser().then((u: any) => {
-      if (u && u.email !== 'hosted@supabase' && u.email !== 'offline@localhost') {
-        setUser(u);
-      }
-    }).catch(() => {});
+    if (u) {
+      setUser(u);
+    }
+  }).catch(() => {});
   }, []);
 
   const handleSignIn = async () => {
