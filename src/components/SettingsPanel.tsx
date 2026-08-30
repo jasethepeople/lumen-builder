@@ -1,3 +1,4 @@
+import { backend } from '../platform/backend';
 /**
  * SettingsPanel — real @lumen/app-settings store UI:
  * reduced-motion preference (system/on/off, resolved into the preview's
@@ -31,6 +32,104 @@ import { backendHost, backendMode, backendReady } from '../platform/backend';
  * Backend section — documents the VITE_ env vars that switch the Builder's
  * backend facade (platform/backend.ts) between offline and hosted modes.
  */
+
+
+function SupabaseAuthSection() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    backend.auth.getUser().then((u) => setUser(u)).catch(() => setUser(null));
+  }, []);
+
+  const handleSignUp = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await backend.auth.signUp({ email, password } as any);
+      const u = await backend.auth.getUser();
+      setUser(u);
+    } catch (e: any) {
+      setError(e.message || 'Sign up failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (typeof (backend.auth as any).signIn === 'function') {
+        await (backend.auth as any).signIn({ email, password });
+      } else if (typeof (backend.auth as any).signInWithPassword === 'function') {
+        await (backend.auth as any).signInWithPassword({ email, password });
+      } else {
+        throw new Error('Sign in method not supported');
+      }
+      const u = await backend.auth.getUser();
+      setUser(u);
+    } catch (e: any) {
+      setError(e.message || 'Sign in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setLoading(true);
+    try {
+      await backend.auth.signOut();
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card space-y-3">
+      <h3 className="font-semibold text-sm">Supabase Authentication</h3>
+      {user ? (
+        <div className="space-y-2">
+          <p className="text-xs text-emerald-400">Signed in as: {user.email || user.id}</p>
+          <button onClick={handleSignOut} disabled={loading} className="btn btn-secondary text-xs">
+            Sign Out
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input text-xs w-full px-2 py-1 bg-black/40 border border-white/10 rounded text-white"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="input text-xs w-full px-2 py-1 bg-black/40 border border-white/10 rounded text-white"
+          />
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleSignIn} disabled={loading || !email || !password} className="btn btn-primary text-xs flex-1">
+              Sign In
+            </button>
+            <button onClick={handleSignUp} disabled={loading || !email || !password} className="btn btn-secondary text-xs flex-1">
+              Sign Up
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BackendSection() {
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -297,6 +396,7 @@ export function SettingsPanel() {
       </div>
 
       {/* Backend (Phase 22) */}
+      <SupabaseAuthSection />
       <BackendSection />
 
       <button className="btn text-xs" onClick={() => settingsStore.reset()}>
