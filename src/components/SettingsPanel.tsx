@@ -290,7 +290,7 @@ export function SettingsPanel() {
           </p>
         )}
         <p className="text-[11px] text-ink-400">
-          MockBillingProvider checkout completes instantly and persists locally; the
+          Stripe checkout redirects to live hosted payment pages. the
           EntitlementService re-resolves gating immediately (try publishing on the free
           plan).
         </p>
