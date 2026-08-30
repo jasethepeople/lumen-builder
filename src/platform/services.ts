@@ -21,7 +21,6 @@ import {
   type DeviceClass,
 } from '@lumen/app-settings';
 import { LocalStorageSink, createTelemetryClient } from '@lumen/app-telemetry';
-import { LocalStorageBillingAdapter, MockBillingProvider } from '@lumen/app-billing';
 import { EntitlementService, FREE_PLAN_ID } from '@lumen/app-entitlements';
 import {
   BuiltinSource,
@@ -123,9 +122,57 @@ export const telemetry = createTelemetryClient({
 // Billing + entitlements
 // ---------------------------------------------------------------------------
 
-export const billing = new MockBillingProvider({
-  storage: new LocalStorageBillingAdapter(),
-});
+class StripeLiveBillingProvider {
+  async getSubscription(userId: string) {
+    try {
+      // Use standard fetch or supabase client wrapper depending on backend definition
+      const response = await fetch(`https://bgqkqcvebizjnkjcbedf.supabase.co/rest/v1/subscriptions?user_id=eq.${userId}&select=*`, {
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          'Authorization': `Bearer \${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+        }
+      });
+      const rows = await response.json();
+      const data = rows && rows.length > 0 ? rows[0] : null;
+      if (!data) {
+        return { userId, planId: FREE_PLAN_ID, status: 'canceled', updatedAt: Date.now() };
+      }
+      return {
+        userId,
+        planId: data.plan_id || FREE_PLAN_ID,
+        status: data.status || 'canceled',
+        currentPeriodEnd: data.current_period_end,
+        updatedAt: Date.now()
+      };
+    } catch {
+      return { userId, planId: FREE_PLAN_ID, status: 'canceled', updatedAt: Date.now() };
+    }
+  }
+
+  async checkout(userId: string, planId: string) {
+    const response = await fetch('https://bgqkqcvebizjnkjcbedf.supabase.co/functions/v1/create-checkout-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, planId }),
+    });
+    const session = await response.json();
+    if (session.url) {
+      window.location.href = session.url;
+    } else {
+      throw new Error(session.error || 'Failed to create Stripe checkout session');
+    }
+  }
+
+  async cancel(userId: string) {
+    await fetch('https://bgqkqcvebizjnkjcbedf.supabase.co/functions/v1/cancel-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+  }
+}
+
+export const billing = new StripeLiveBillingProvider();
 
 /**
  * Cached plan id. EntitlementService's PlanResolver is synchronous while the
