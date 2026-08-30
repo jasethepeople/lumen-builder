@@ -34,6 +34,7 @@ import { backendHost, backendMode, backendReady } from '../platform/backend';
  */
 
 
+
 function SupabaseAuthSection() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,14 +43,22 @@ function SupabaseAuthSection() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    backend.auth.getUser().then((u) => setUser(u)).catch(() => setUser(null));
+    backend.auth.getUser().then((u) => {
+      if (u && u.email && u.email !== 'offline@localhost') {
+        setUser(u);
+      } else {
+        setUser(null);
+      }
+    }).catch(() => setUser(null));
   }, []);
 
   const handleSignUp = async () => {
     setLoading(true);
     setError(null);
     try {
-      await backend.auth.signUp({ email, password } as any);
+      if (typeof (backend.auth as any).signUp === 'function') {
+        await (backend.auth as any).signUp({ email, password });
+      }
       const u = await backend.auth.getUser();
       setUser(u);
     } catch (e: any) {
@@ -82,7 +91,9 @@ function SupabaseAuthSection() {
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      await backend.auth.signOut();
+      if (typeof backend.auth.signOut === 'function') {
+        await backend.auth.signOut();
+      }
       setUser(null);
     } finally {
       setLoading(false);
@@ -92,7 +103,7 @@ function SupabaseAuthSection() {
   return (
     <div className="card space-y-3">
       <h3 className="font-semibold text-sm">Supabase Authentication</h3>
-      {user ? (
+      {user && user.email && user.email !== 'offline@localhost' ? (
         <div className="space-y-2">
           <p className="text-xs text-emerald-400">Signed in as: {user.email || user.id}</p>
           <button onClick={handleSignOut} disabled={loading} className="btn btn-secondary text-xs">
@@ -101,6 +112,7 @@ function SupabaseAuthSection() {
         </div>
       ) : (
         <div className="space-y-2">
+          <p className="text-xs text-zinc-400">Sign in to your hosted Supabase backend project.</p>
           {error && <p className="text-xs text-rose-400">{error}</p>}
           <input
             type="email"
