@@ -1,3 +1,5 @@
+import { SupabaseAuthSection } from './SupabaseAuthSection';
+
 /**
  * SettingsPanel — real @lumen/app-settings store UI:
  * reduced-motion preference (system/on/off, resolved into the preview's
@@ -50,6 +52,9 @@ function BackendSection() {
   const hosted = backendMode === 'hosted';
   return (
     <div className="card space-y-2">
+      <div className="p-4 mb-6 bg-black/30 border border-white/10 rounded-lg">
+        <SupabaseAuthSection />
+      </div>
       <div className="section-title mb-1">Backend</div>
       <div className="flex items-center gap-2">
         <span
