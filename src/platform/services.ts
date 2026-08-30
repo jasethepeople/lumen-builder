@@ -1,3 +1,4 @@
+import { backend } from './backend';
 /**
  * Platform service singletons for the Builder UI.
  *
@@ -143,8 +144,18 @@ export function onPlanChange(listener: (planId: string) => void): () => void {
   return () => planListeners.delete(listener);
 }
 
+async function resolveBillingUserId(): Promise<string> {
+  try {
+    const user = await backend.auth.getUser();
+    return user?.id ?? USER_ID;
+  } catch {
+    return USER_ID;
+  }
+}
+
 export async function refreshPlan(): Promise<string> {
-  const sub = await billing.getSubscription(USER_ID);
+  const uid = await resolveBillingUserId();
+  const sub = await billing.getSubscription(uid);
   const active = sub.status === 'active' || sub.status === 'trialing';
   currentPlanId = active ? sub.planId : FREE_PLAN_ID;
   planListeners.forEach((l) => l(currentPlanId));
@@ -152,10 +163,11 @@ export async function refreshPlan(): Promise<string> {
 }
 
 export async function switchPlan(planId: string): Promise<string> {
+  const uid = await resolveBillingUserId();
   if (planId === FREE_PLAN_ID) {
-    await billing.cancel(USER_ID);
+    await billing.cancel(uid);
   } else {
-    await billing.checkout(USER_ID, planId);
+    await billing.checkout(uid, planId);
   }
   return refreshPlan();
 }
